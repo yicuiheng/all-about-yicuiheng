@@ -1,0 +1,58 @@
+%
+% This code is licensed under CC0.
+% http://creativecommons.org/publicdomain/zero/1.0/deed
+%
+
+\documentclass[lualatex,a4paper,ja=standard]{bxjsarticle}
+
+\usepackage{style/common}
+
+\begin{document}
+
+\input{src/title}
+
+\section{コーディングスタイルに対しての姿勢}
+
+\par 基本的に僕はコーディングスタイルに特別こだわりがあるわけではありません．
+しかし何かしら統一していた方がコードを読む側として情報量が増えるのでいくつかの規則を設けています．
+
+\par 基本的に以下の設定ファイルのもとで \code{clang-format} しています．
+\begin{program}[linenos]{yaml}{.clang-format}
+  BasedOnStyle: LLVM
+  Language: Cpp
+  Standard: c++20
+  IndentWidth: 4
+  AccessModifierOffset: -4
+  SortIncludes: false
+\end{program}
+
+\par \code{SortIncludes: false} はインクルードの順番をヘッダファイル名の辞書順にソートしないという設定です．
+これはソートの順番に意味を持たせたい，というのと \code{GL/glew.h} などのようにインクルード順に制約があるためです．
+
+\section{名前}
+
+\begin{itemize}
+  \item 識別子は基本的に標準ライブラリに合わせます
+        \begin{itemize}
+          \item つまり変数名は \code{snake\_case} です
+        \end{itemize}
+  \item 型名には \code{\_t} という suffix を付けます
+\end{itemize}
+
+\section{includeの順序}
+
+\par 制約がない限り以下の優先度で上から順番に \code{include} します
+\begin{enumerate}
+  \item 標準ライブラリ
+  \item Boostライブラリ
+  \item 他のサードパーティーライブラリ
+  \item 自分のプロジェクトのヘッダ
+\end{enumerate}
+
+\par これは ``悪さをしない順'' です．
+つまり，自分のプロジェクトのヘッダのせいで標準ライブラリヘッダ内でエラーが起きる可能性はその逆に比べて大きいという考えがあり，そういったバグを最小限にするためにこの順番になっています．
+
+\renewcommand{\bibname}{参考文献}
+\printbibliography
+
+\end{document}
