@@ -7,7 +7,8 @@
 
 ## コンテンツ
 
-- [VTuber活動](./activities-as-vtuber.md)
+- [VTuber活動](./activities-as-vtuber/Readme.md)
+- [魔術](./tech/Readme.md)
 
 ## License
 
