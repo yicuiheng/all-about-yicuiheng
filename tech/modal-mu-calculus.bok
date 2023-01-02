@@ -1,0 +1,31 @@
+
+# The $\mu$-calculus and model-checking
+
+url: https://www.labri.fr/perso/igw/Papers/igw-mu.pdf
+
+## 基本
+
+### 構文と意味
+
+$\mu$ 計算は遷移システム (潜在的にはラベル付きの辺と頂点を持つ無限グラフ) の性質を表現するための論理である。
+遷移システムの辺は遷移 (transion) と呼ばれ, 頂点は状態 (state) と呼ばれる。
+遷移はアクション ($\mathrm{Act} = \{a, b, c, \dots\}$) でラベルされており, 状態は命題 ($\mathrm{Prop} = \{p_1, p_2, \dots\}$) の集合である。
+形式的には遷移システム (transion system) は $\mathcal{M} = \langle S, \{R_a\}_{a\in\mathrm{Act}}, \{P_i\}_{i\in\mathbb{N}} \rangle$ である。
+つまり, 状態の集合 $S$, 各アクション $a \in \mathrm{Act}$ に対する二項関係 $R_a \subseteq S \times S$, 各命題に対する集合 $P_i \subseteq S$ の組である。
+組 $(s, s') \in R_a$ は $a$-遷移と呼ばれる。
+
+#### 構文
+論理式は conjunction, disduction, modalities, fixpoint operator によって構築される。
+$\mu$ 計算の論理式の集合 $\mathcal{F_{\mathit{mc}}}$ は以下を含む最小の集合である。
+
+neko
+
+- 任意の $p \in \mathrm{Prop}$ について $p$ と $\lnot p$
+- 任意の変数 $X \in \mathit{Var}$
+- $\mathcal{F}_{\mathit{mc}}$ 中の任意の論理式 $\alpha$, $\beta$ について $\alpha \lor \beta$, $\alpha \land \beta$
+- $a \in \mathrm{Act}$, $\alpha \in \mathcal{F}_{\mathit{mc}}$ として, $\langle a\rangle\alpha$, $\lbrack a\rbrack\alpha$
+
+hoge
+
+
+

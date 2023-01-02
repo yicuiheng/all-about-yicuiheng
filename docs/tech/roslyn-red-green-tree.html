@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>math environment test</title>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.css"
+        integrity="sha384-MlJdn/WNKDGXveldHDdyRP1R4CTHr3FeuDNfhsLPYrq2t0UBkUdK2jyTnXPEK1NQ" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.js"
+        integrity="sha384-VQ8d8WVFw0yHhCk5E8I86oOhv48xLpnDZx5T9GogA/Y84DcCKWXDmSDfn13bzFZY"
+        crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/contrib/auto-render.min.js"
+        integrity="sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR" crossorigin="anonymous">
+        </script>
+
+    <link rel="stylesheet" href="../bokuteki.css">
+</head>
+
+<body>
+    <h1 class="block">
+         Roslyn の実装にみる Red Green Tree
+    </h1>
+    <p class="block">
+        最近 Roslyn のコードを読んでいて Red Green Tree というものを知ったので、それについて書いてみます。
+    </p>
+    <p class="block">
+        昨今、Language Server Protocol によって開発支援機能が規格化されたのもあって、世の開発環境がどんどんリッチになっています。それの伴って言語処理系側に対する要求も増えており、特に次の 2 つは開発支援機能を実装する上で重要です。
+    </p>
+    <ul class="block">
+        <li>
+            修正途中の不完全なソースコードを入力として与えられて、ユーザにとって有益な情報を出力する
+        </li>
+        <li>
+            前回からのソースコードの修正差分が与えられて、構文木を更新する
+        </li>
+    </ul>
+    <p class="block">
+        これらはテキストエディタ上でソースコードが修正される度に実行されユーザが不快にならない時間内に処理を完了する必要があります。そういった要求を満たすために考えられた構文木の設計の一つが Red Green Tree です。はじめは Roslyn で実装され、のちに Swift や Rust の言語サーバーである rust-analyzer でも使われるようになりました。
+    </p>
+    <h2 class="block">
+         Red Green Tree の概要
+    </h2>
+    <p class="block">
+        Red Green Tree のアイデアは構文木を Green Tree と Red Tree というレベルが異なる 2 つの木で表現するというものです。Green Tree は構文解析によって生成される木で、Red Tree は Green Tree に対する操作機能を提供するための木です。
+    </p>
+    <h3 class="block">
+         Green Tree
+    </h3>
+    <p class="block">
+        Green Tree は空白やコメントを含めてソースコードから得られるすべての情報を保持しているので、後で元のソースコードを復元することができます。これのおかげでユーザフレンドリーなエラー報告を実現できています。Green Tree の特殊な点は、ソースコード上での位置ではなくソースコード上での長さの情報を保持していることです。これによってソースコードの修正差分を基に構文木を更新するコストを減らせます。具体例を使って説明します。以下のプログラムを考えましょう。
+    </p>
+    <pre class="block">
+int Id(int x)
+{
+    return x;
+}</pre>
+    <p class="block">
+        これを構文解析すると以下のような Green Tree を得ます。後ろにカッコつきで付与している数字はそのノードの長さです。また "\n" は実際のソースコード中での表現に依らず改行の意です。
+    </p>
+    <p class="block">
+        FunctionDeclaration (32)
+    </p>
+    <ul class="block">
+        <li>
+            "int " (4)
+        </li>
+        <li>
+            "Id" (2)
+        </li>
+        <li>
+            Params (8)
+            <ul>
+                <li>
+                    "(" (1)
+                </li>
+                <li>
+                    "int " (4)
+                </li>
+                <li>
+                    "x" (1)
+                </li>
+                <li>
+                    ")\n" (2)
+                </li>
+            </ul>
+        </li>
+        <li>
+            "{\n " (6)
+        </li>
+        <li>
+            Statements (10)
+            <ul>
+                <li>
+                    ReturnStatement (10)
+                    <ul>
+                        <li>
+                            "return " (7)
+                        </li>
+                        <li>
+                            "x" (1)
+                        </li>
+                        <li>
+                            ";\n" "2"
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li>
+            "}\n" (2)
+        </li>
+    </ul>
+    <p class="block">
+        ここで範囲 (27-28) を <code>42</code> に書き換える (つまり <code>return x;</code> を <code>return 42;</code> に変える) という修正差分を受け取った時、更新後の Green Tree は次のようになります。
+    </p>
+    <p class="block">
+        FunctionDeclaration (33)
+    </p>
+    <ul class="block">
+        <li>
+            "int " (4)
+        </li>
+        <li>
+            "Id" (2)
+        </li>
+        <li>
+            Params (8)
+            <ul>
+                <li>
+                    "(" (1)
+                </li>
+                <li>
+                    "int " (4)
+                </li>
+                <li>
+                    "x" (1)
+                </li>
+                <li>
+                    ")\n" (2)
+                </li>
+            </ul>
+        </li>
+        <li>
+            "{\n " (6)
+        </li>
+        <li>
+            Statements (11)
+            <ul>
+                <li>
+                    ReturnStatement (11)
+                    <ul>
+                        <li>
+                            "return " (7)
+                        </li>
+                        <li>
+                            "42" (2)
+                        </li>
+                        <li>
+                            ";\n" "2"
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li>
+            "}\n" (2)
+        </li>
+    </ul>
+    <p class="block">
+        ここで注意して欲しいのは、更新が必要なノードは "x" とその祖先ノードたち (ReturnStatement, Statements, Params, FunctionDeclaration) だけという点です。もし Green Tree が長さではなくソースコード上の位置情報を保持していれば、"x" 以降のトークンの位置がずれるのでそれらの更新も必要になっていたことでしょう。
+    </p>
+    <h3 class="block">
+         Red Tree
+    </h3>
+    <p class="block">
+        Red Tree は Green Tree への参照を持ち、構文木に対する様々な操作をする API を提供します。Red Tree の特殊な点は子ノードの生成が遅延されるということです。
+    </p>
+    <p class="block">
+        Green Tree の時に使用した例を使って Red Tree がどのように構築されるかを説明します。まず 1 つめの入力に対して以下のような Red Tree が得られます。後ろにカッコつきで付与している (a-b) はそのノードがソースコード上で a バイト目から b バイト目にあることを意味しています。
+    </p>
+    <p class="block">
+        FunctionDeclaration (0-32)
+    </p>
+    <p class="block">
+        Green Tree トップレベルの要素に対応する Red Tree のノードしか作られません。次に Green Tree の時と同様の修正差分が与えられた時、Red Tree は Green Tree を更新するために次の木を作ります。
+    </p>
+    <p class="block">
+        FunctionDeclaration (0-32)
+    </p>
+    <ul class="block">
+        <li>
+            Statements (20-30)
+            <ul>
+                <li>
+                    ReturnStatement (20-30)
+                    <ul>
+                        <li>
+                            "x" (27-28)
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <p class="block">
+        これによって修正すべき Green Tree のノードは "x" と ReturnStatement, Statements, FunctionDeclaration だと分かります。今回は修正箇所が小さかったので木というよりはパスになりましたが、複数のトークンにまたがる修正をした場合は木の形になります。
+    </p>
+    <h2 class="block">
+         Roslyn での実装
+    </h2>
+    <h3 class="block">
+         Green Tree
+    </h3>
+    <p class="block">
+        Roslyn では Green Tree は <a href="https://github.com/dotnet/roslyn/blob/main/src/Compilers/Core/Portable/Syntax/GreenNode.cs">src/Compilers/Core/Portable/Syntax/GreenNode.cs</a> で定義されている GreenNode を継承しています。説明したい部分を以下に抜き出しました。
+    </p>
+    <pre class="block">
+internal abstract class GreenNode : IObjectWritable
+{
+    private readonly ushort _kind;
+    private byte _slotCount;
+    private int _fullWidth;
+
+    internal abstract GreenNode? GetSlot(int index);
+
+    ...
+}</pre>
+    <p class="block">
+        たしかに <code>_fullWidth</code> としてソースコード上の長さを保持しています。また、親ノードを参照するメンバを持たないことから GreenNode の状態は子ノードにしか依存しないことが分かります。
+    </p>
+    <h3 class="block">
+         Red Tree
+    </h3>
+    <p class="block">
+        Red Tree は Roslyn では <a href="https://github.com/dotnet/roslyn/blob/main/src/Compilers/Core/Portable/Syntax/SyntaxNode.cs">src/Compilers/Core/Portable/Syntax/SyntaxNode.cs</a> にて SyntaxNode という名前で定義されています。説明したい部分を以下に抜き出しました。
+    </p>
+    <pre class="block">
+public abstract partial class SyntaxNode
+{
+    private readonly SyntaxNode? _parent;
+
+    internal GreenNode Green { get; }
+    internal int Position { get; }
+    internal int EndPosition => Position + Green.FullWidth;
+
+    ...
+}</pre>
+    <p class="block">
+        こちらは Green Tree とは対称的に <code>Position</code> と <code>EndPosition</code> という名前でソースコード上の位置を持っていることが分かります。Red Tree はプログラム全体の GreenNode が構築された後に作られるので、GreenNode の持つ長さを使うことでノードのソースコード上の位置を使うことができます。また、<code>_parent</code> をフィールドに持っており、親や兄弟ノードへのアクセスという GreenNode では提供していなかった走査が可能になっています。
+    </p>
+    <h2 class="block">
+         Roslyn のコードを読みたい人向け
+    </h2>
+    <p class="block">
+        上記では Red Green Tree の説明のために Roslyn 上で具体的にどうなっているのかを省きました。ここでは Roslyn のコードを読みたい人向けに Red Green Tree に関するソースコードがどのようになっているのかを説明します。
+    </p>
+    <p class="block">
+        まず、Green Tree と Red Tree は別の木ですが、その構造は C# の文法と一致しているため共通部分が多くあります。そのため Roslyn では <a href="https://github.com/dotnet/roslyn/blob/main/eng/generate-compiler-code.cmd">eng/generate-compiler-code.cmd</a> を実行することで <a href="https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Syntax/Syntax.xml">src/Compilers/CSharp/Portable/Syntax/Syntax.xml</a> という C# の文法を定義した XML から <a href="https://github.com/dotnet/roslyn/tree/main/src/Compilers/CSharp/Portable/Generated">src/Compilers/CSharp/Portable/Generated</a> 以下に Green Tree と Red Tree の構造などを定義した C# コードを生成するようにしています。生成されるファイルの内、今回取り上げたものに関係があるのは次の通りです。
+    </p>
+    <ul class="block">
+        <li>
+            <a href="https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Generated/CSharpSyntaxGenerator/CSharpSyntaxGenerator.SourceGenerator/Syntax.xml.Internal.Generated.cs">src/Compilers/CSharp/Portable/Generated/CSharpSyntaxGenerator/CSharpSyntaxGenerator.SourceGenerator/Syntax.xml.Internal.Generated.cs</a> : Green Tree のノードの定義とその Factory や Visitor が定義されています。Green Tree のノードはすべて GreenNode クラスを継承しています
+        </li>
+        <li>
+            <a href="https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Generated/CSharpSyntaxGenerator/CSharpSyntaxGenerator.SourceGenerator/Syntax.xml.Syntax.Generated.cs">src/Compilers/CSharp/Portable/Generated/CSharpSyntaxGenerator/CSharpSyntaxGenerator.SourceGenerator/Syntax.xml.Syntax.Generated.cs</a> : Red Tree のノードが定義されています。これらはすべて SyntaxNode クラス (Red Tree のノード) を継承しています
+        </li>
+        <li>
+            <a href="https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Generated/CSharpSyntaxGenerator/CSharpSyntaxGenerator.SourceGenerator/Syntax.xml.Main.Generated.cs">src/Compilers/CSharp/Portable/Generated/CSharpSyntaxGenerator/CSharpSyntaxGenerator.SourceGenerator/Syntax.xml.Main.Generated.cs</a> : Red Tree のノードに対する Factory や Visitor が定義されています
+        </li>
+    </ul>
+    <p class="block">
+        ちなみに <a href="https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Generated/CSharp.Generated.g4">src/Compilers/CSharp/Portable/Generated/CSharp.Generated.g4</a> というファイルも生成されます。これは <a href="https://www.antlr.org/">ANTLR4</a> というメジャーなパーザジェネレータ向けの文法定義ファイルですが、Roslyn はこれを使って構文解析をしているわけではなさそうです。C# の構文解析は <a href="https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Parser/LanguageParser.cs">src/Compilers/CSharp/Portable/Parser/LanguageParser.cs</a> でされていて、完全に手書きっぽい雰囲気があります。やはり究極までユーザフレンドリーなエラー報告をしようと思うと構文解析器手書きをすることになるんでしょうか。恐ろしいですね。
+    </p>
+    <p class="block">
+        この後は https://github.com/KirillOsenkov/Bliki/wiki/Roslyn-Immutable-Trees で紹介されている Roslyn の最適化のいくつかがコード上のどこで行われているのかを見てましょう。
+    </p>
+    <h3 class="block">
+         診断データや注釈データを静的メンバとして持つ
+    </h3>
+    <p class="block">
+        単純に考えると診断データや注釈データなどの構文木に対して付加されるデータは Green Tree の各ノードが持てばよさそうですが、Roslyn では GreenNode の静的メンバとして保持しています。(https://github.com/dotnet/roslyn/blob/main/src/Compilers/Core/Portable/Syntax/GreenNode.cs#L34)ほとんどのノードは診断データなどを持たないため、このようにした方が GreenNode のサイズが小さくなりキャッシュヒット率が上がりパフォーマンスが良くなるそうです。
+    </p>
+    <h3 class="block">
+         終端トークンを使いまわす
+    </h3>
+    <p class="block">
+        記号やキーワードのようなトークンについては予めトークンが作られていてそれを使いまわすようになっています。ソースコード上では https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Syntax/InternalSyntax/SyntaxToken.cs#L146 で定義されており、そののちの static コンストラクタで初期化されています。(https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Syntax/InternalSyntax/SyntaxToken.cs#L151)そして https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Syntax/InternalSyntax/SyntaxToken.cs#L113 にてトークンに先行/後続する空白などがあるかどうかを見て使いまわせるものは使いまわすようにしています。
+    </p>
+    <h3 class="block">
+         Red Tree のノード生成を遅延させる
+    </h3>
+    <p class="block">
+        ソースコードがパーズされた直後の Red Tree は Green Tree 側の CompilationUnitSyntax を指すだけの子要素を持たない木になります。(https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Syntax/CSharpSyntaxTree.cs#L507)その後、この CompilationUnitSyntax のメンバを使用する時に子要素が構築されるようになっています。例えばクラス定義の構文である ClassDeclarationSyntax (https://github.com/dotnet/roslyn/blob/main/src/Compilers/CSharp/Portable/Generated/CSharpSyntaxGenerator/CSharpSyntaxGenerator.SourceGenerator/Syntax.xml.Syntax.Generated.cs#L10123) は以下のようになっています。
+    </p>
+    <pre class="block">
+public sealed partial class ClassDeclarationSyntax : TypeDeclarationSyntax
+{
+    private SyntaxNode? attributeLists;
+    private TypeParameterListSyntax? typeParameterList;
+    private BaseListSyntax? baseList;
+    private SyntaxNode? constraintClauses;
+    private SyntaxNode? members;
+    // ...
+    public override SyntaxList<MemberDeclarationSyntax> Members => new SyntaxList<MemberDeclarationSyntax>(GetRed(ref this.members, 8));
+}</pre>
+    <p class="block">
+        上記のようになっており、例えばクラス定義のメンバを読みに行くタイミングで <code>GetRed(this.members, 8)</code> を呼んでいます。<code>GetRed(ref this.members, 8)</code> の中では <code>this.members</code> が <code>null</code> かどうか判定し、<code>null</code> であればそれについて Red Node を作って返しています。
+    </p>
+    <h2 class="block">
+         参考になりそうなもの
+    </h2>
+    <ul class="block">
+        <li>
+            Persistence, Facades and Roslyn's Red-Green Trees (https://learn.microsoft.com/ja-jp/archive/blogs/ericlippert/persistence-facades-and-roslyns-red-green-trees)
+        </li>
+        <li>
+            https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/syntax.md
+        </li>
+        <li>
+            https://willspeak.me/2021/11/24/red-green-syntax-trees-an-overview.html
+        </li>
+        <li>
+            https://github.com/KirillOsenkov/Bliki/wiki/Roslyn-Immutable-Trees
+        </li>
+        <li>
+            https://github.com/oilshell/oil/wiki/Lossless-Syntax-Tree-Pattern
+        </li>
+    </ul>
+    <script src="../bokuteki.js"></script>
+</body>
+
+</html>

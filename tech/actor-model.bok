@@ -1,0 +1,88 @@
+## Foundations of Actor Semantics を読む
+
+目的: アクターモデルの理解: バリア同期の式と reduction を書けるようになる
+
+url: Foundations of Actor Semantics (https://dspace.mit.edu/handle/1721.1/6935) を読む
+
+### Chapter 1: Introduction
+
+Ordinary sequential computation は並行計算のもっとも単純なケースです。
+並行計算は逐次計算のケースも含む並行計算の様々な種類を含むはるかに一般的なカテゴリです。
+逐次的なケースではかなりよく理解されていますが、一般的な並行計算についてそうではありません。
+並行計算のよりよい理論を構築する明確な方法は二つあります。
+一つは逐次計算の既存理論を一般化することです。
+他方は並行合成のモデルから初めて逐次計算を特殊ケースとして照合できる新しい理論を作ることです。
+アクターモデルは2つめの理論的発展を補助するものです。
+Chapter 3 で登場するように既存理論の一般化の方針はかなり違う理論的予想につながります。
+
+並行計算のモデルとして、アクターモデルは計算の途中のコミュニケーションに重きをおいています。
+そのようなコミュニケーションの例として、CPUとメモリをつなげるバス上で伝達される信号、プログラムのサブルーチン間でのパラメータの受け渡し、地理的に分散したネットワーク内のコンピュータ間で転送されるメッセージ、マルチコア CPU でのプロセス合成などがあります。
+これらのコミュニケーションはすべて "メッセージパッシング" と呼ばれるものの例として考えられます。
+
+アクターモデルは過去数十年間のうちに構築されたメッセージパッシングモデルの一つです。
+こういったモデルはいくつかあるのですが、メッセージパッシングのコンセプト化において違いがあります。
+いくつかのモデル化については、メッセージパッシングは電話でのネットワークに似ています。つまりメッセージの送信は本質的に一瞬だが、ラインが混んでいたりメッセージが届かない場合があります。
+一方でアクターモデルではメッセージパッシングはメールサービスに似ています。メッセージは常に送られますが、宛先に届くまでには変動する遅延が生じえます。
+そのためアクターモデルはマルチプロセッサーやプログラムのような分散計算機ネットワークの分析に使うことができます。
+
+### Chapter 2: Ordering Laws
+
+
+## 並行計算モデル
+
+参考文献
+- 並行プログラミング入門 (https://www.oreilly.co.jp/books/9784873119595/)
+- Programming Distributed Computing Systems (https://mitpress.mit.edu/books/programming-distributed-computing-systems)
+
+並行計算モデル
+
+### アクターモデル
+
+- Foundations of Actor Semantics (https://dspace.mit.edu/handle/1721.1/6935)
+
+アクターコンフィグレーションとはアクターモデルでのあるステップ時刻における状態を表したものである。
+
+definition. アクターコンフィギュレーション
+  アクターコンフィギュレーションとはアクター名から式への写像 $\alpha$ と送信中のデータの多重集合 $E$ のペアであり、$\alpha || E$ と書く。
+  
+  アクター名 $v_i$ に対して $\alpha\left(v_i\right) = A_i$ であるとき、
+  $$
+    \alpha = [A_0]_{v_0}, [A_1]_{v_1}, [A_2]_{v_2}, \dots, [A_{{n-1}}]_{v_{n-1}}
+  $$
+  とかく。
+  
+  $m$ 個のデータが送信中の場合、$E$ は以下のようになる
+  
+  $$
+    E = \{\langle d_0 \Leftarrow e_0 \rangle, \langle d_1 \Leftarrow e_1 \rangle, \langle d_2 \Leftarrow e_2 \rangle, \dots \langle d_{m-1} \Leftarrow e_{m-1} \rangle\} \\
+  $$
+  
+  ここで $d_i$ は宛先のアクター名を、$e_i$ は送信するデータを表している。
+
+#### アクター言語の構文
+
+$$
+\begin{aligned}
+  \mathcal{A} &= \{ \mathtt{true}, \mathtt{false}, \mathtt{null}, \dots \} && \text{アトム}\\
+  \mathcal{N} &= \{ 0, 1, 2, \dots \} && \text{自然数} \\
+  \mathcal{X} &= \{ x, y, z, \dots \} && \text{変数} \\
+  \mathcal{F} &= \{ \mathtt{+}, \mathtt{*}, \mathtt{=}, \mathtt{is\_pair?}, 1^{\mathtt{st}}, 2^{\mathtt{nd}} \} && \text{プリミティブ演算}\\
+  \\
+  \mathcal{V} &::= && \text{値} \\
+      &\quad\mid \mathcal{A} \mid \mathcal{N} \mid \mathcal{X} \\
+      &\quad\mid \lambda \mathcal{X}. \mathcal{E} && \text{λ抽象} \\
+      &\quad\mid \mathtt{pair}(\mathcal{V}, \mathcal{V}) && \text{ペア} \\
+  \\
+  \mathcal{E} &::= && \text{式} \\
+      &\quad\mid \mathcal{V} \\
+      &\quad\mid \mathtt{pair}(\mathcal{E}, \mathcal{E}) \\
+      &\quad\mid hoge
+
+\end{aligned}
+$$
+
+
+### $\pi$ 計算
+
+
+

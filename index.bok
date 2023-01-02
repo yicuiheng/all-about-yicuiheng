@@ -1,0 +1,19 @@
+import 'tech';
+import 'vtuber-activities';
+import 'works';
+
+# all about yicuiheng
+
+このレポジトリには以下ものを含みます。
+
+- 勉強した内容
+- 様々な方針
+- 勉強法とか発表スライドの作り方とかそういうやつ
+- 作ったもの
+- その他すべて
+
+## コンテンツ
+
+- [VTuber活動](./vtuber-activities.html)
+- [魔術](./tech.html)
+- [作ったもの](./works.html)
